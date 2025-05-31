@@ -1,43 +1,29 @@
 from flask import Flask, request, jsonify
+from openfga_sdk import ClientConfiguration, OpenFgaClient
+import asyncio
 
 app = Flask(__name__)
-items = {}
 
-@app.route('/items', methods=['GET'])
-def get_items():
-    return jsonify(list(items.values()))
+FGA_API_URL = 'http://localhost:8080'  # Replace with your OpenFGA API URL
+FGA_STORE_ID = '01JWKXM6H4KWD0TAZC9FSQYCSN'  # Replace with your OpenFGA store ID
 
-@app.route('/items/<int:item_id>', methods=['GET'])
-def get_item(item_id):
-    item = items.get(item_id)
-    if item:
-        return jsonify(item)
-    return jsonify({'error': 'Item not found'}), 404
-
-@app.route('/items', methods=['POST'])
-def create_item():
-    data = request.get_json()
-    item_id = len(items) + 1
-    item = {'id': item_id, 'name': data.get('name')}
-    items[item_id] = item
-    return jsonify(item), 201
-
-@app.route('/items/<int:item_id>', methods=['PUT'])
-def update_item(item_id):
-    data = request.get_json()
-    item = items.get(item_id)
-    if not item:
-        return jsonify({'error': 'Item not found'}), 404
-    item['name'] = data.get('name', item['name'])
-    items[item_id] = item
-    return jsonify(item)
-
-@app.route('/items/<int:item_id>', methods=['DELETE'])
-def delete_item(item_id):
-    if item_id in items:
-        del items[item_id]
-        return jsonify({'result': 'Item deleted'})
-    return jsonify({'error': 'Item not found'}), 404
+# Create a user management API
+@app.route('/test', methods=['GET'])
+def test_connection():
+    async def main():
+        configuration = ClientConfiguration(
+            api_url=FGA_API_URL,  # required
+            store_id=FGA_STORE_ID,  # optional, not needed when calling `CreateStore` or `ListStores`
+            # authorization_model_id=FGA_MODEL_ID,  # Optional, can be overridden per request
+        )
+        # Enter a context with an instance of the OpenFgaClient
+        async with OpenFgaClient(configuration) as fga_client:
+            api_response = await fga_client.read_authorization_models()
+            await fga_client.close()
+            return api_response
+    result = asyncio.run(main())
+    print(result)
+    return {'status': 'success'}, 200
 
 if __name__ == '__main__':
     app.run(debug=True)

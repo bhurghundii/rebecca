@@ -3,9 +3,10 @@ name = "rebecca-api"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
+    "asyncio>=3.4.3",
     "flask>=3.1.1",
-    "openfga-sdk>=0.1.1",
+    "openfga-sdk>=0.9.4",
     "requests>=2.32.3",
 ]
