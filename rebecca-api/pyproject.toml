@@ -9,4 +9,5 @@ dependencies = [
     "flask>=3.1.1",
     "openfga-sdk>=0.9.4",
     "requests>=2.32.3",
+    "uvicorn>=0.34.3",
 ]

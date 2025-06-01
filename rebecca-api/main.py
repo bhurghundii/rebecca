@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from openfga_sdk import ClientConfiguration, OpenFgaClient
 from openfga_sdk.client.models import ClientTuple, ClientWriteRequest, ClientCheckRequest
 import asyncio
@@ -7,18 +7,19 @@ import uuid
 app = Flask(__name__)
 
 FGA_API_URL = 'http://localhost:8080'  # Replace with your OpenFGA API URL
-FGA_STORE_ID = '01JWKXM6H4KWD0TAZC9FSQYCSN'  # Replace with your OpenFGA store ID
+FGA_STORE_ID = '01JWNT5DJYSR5AJJVC3PA3YZCF'  # Replace with your OpenFGA store ID
 
-# Create a user management API
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/test', methods=['GET'])
 def test_connection():
     async def main():
         configuration = ClientConfiguration(
-            api_url=FGA_API_URL,  # required
-            store_id=FGA_STORE_ID,  # optional, not needed when calling `CreateStore` or `ListStores`
-            # authorization_model_id=FGA_MODEL_ID,  # Optional, can be overridden per request
+            api_url=FGA_API_URL,
+            store_id=FGA_STORE_ID,
         )
-        # Enter a context with an instance of the OpenFgaClient
         async with OpenFgaClient(configuration) as fga_client:
             api_response = await fga_client.read_authorization_models()
             await fga_client.close()
@@ -88,4 +89,3 @@ def check_relationship():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
