@@ -1,55 +1,387 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Rebecca API Demo</title>
+    <style>
+        /* Simple header and button styling */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            background: #f5f5f5;
+            padding: 10px 0 10px 10px;
+            margin-bottom: 20px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-buttons button {
+            padding: 6px 16px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            margin-left: 30px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Rebecca API Demo</h1>
-    <p> All in ONE package </p>
-    <p> Run this fucker on an ECS inside your VPC to do all your auth shit</p>
-    <p> Pretty UI to manage </p>
+    <div class="header-bar">
+        <div class="header-buttons">
+            <button id="manageRelationshipsBtn">Manage Relationships</button>
+            <button id="addUserBtn">Add User</button>
+            <button id="addFeatureBtn">Add Feature</button>
+            <button id="manageRolesBtn">Manage Roles</button>
+        </div>
+    </div>
 
-    <h2>Product Owner: Add someone to a Feature</h2>
-    <input type="text" id="userName" placeholder="Name">
-    <input type="email" id="userEmail" placeholder="Email">
-    <button onclick="createUser()">Add to feature</button>
-    <div id="createUserResult"></div>
+    <div id="relationshipsSection" style="display: none;">
+        <h2>User-Feature Relationships</h2>
+        <div id="relationshipsTableContainer"></div>
+    </div>
 
-    <h2>Check Relationship</h2>
-    <input type="text" id="checkUserId" placeholder="User ID">
-    <input type="text" id="checkRelation" placeholder="Relation (e.g. viewer)">
-    <input type="text" id="checkObject" placeholder="Object (e.g. doc:1)">
-    <button onclick="checkRelationship()">Check</button>
-    <div id="checkResult"></div>
+    <div id="createUserSection" style="display: none;">
+        <h2>Create a User</h2>
+        <form onsubmit="event.preventDefault(); createUser();">
+            <input type="text" id="userName" placeholder="Name" required>
+            <input type="email" id="userEmail" placeholder="Email" required>
+            <button type="submit">Add User</button>
+        </form>
+        <div id="createUserResult"></div>
+    </div>
+
+    <div id="createFeatureSection" style="display: none;">
+        <h2>Create a Feature</h2>
+        <form onsubmit="event.preventDefault(); createFeature();">
+            <input type="text" id="featureName" placeholder="Feature Name" required>
+            <button type="submit">Add Feature</button>
+        </form>
+        <div id="createFeatureResult"></div>
+    </div>
+
+    <div id="manageRolesSection" style="display: none;">
+        <h2>Manage Roles</h2>
+        <form id="addRoleForm" onsubmit="event.preventDefault(); addRole();">
+            <input type="text" id="roleName" placeholder="Role Name" required>
+            <button type="submit">Add Role</button>
+        </form>
+        <ul id="rolesList"></ul>
+    </div>
 
     <script>
-        async function createUser() {
-            const name = document.getElementById('userName').value;
-            const email = document.getElementById('userEmail').value;
-            const res = await fetch('/users', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, email})
+
+        // Store selected roles for each user-feature pair
+let userFeatureRoles = {}; // { "userEmail|featureName": "role" }
+
+function renderRelationships() {
+    const container = document.getElementById('relationshipsTableContainer');
+    container.innerHTML = '';
+
+    if (users.length === 0 || features.length === 0 || roles.length === 0) {
+        container.innerHTML = '<p>Add users, features, and roles to manage relationships.</p>';
+        return;
+    }
+
+    // Build table
+    const table = document.createElement('table');
+    table.border = 1;
+    table.cellPadding = 8;
+    table.style.borderCollapse = 'collapse';
+
+    // Header row
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    const userTh = document.createElement('th');
+    userTh.textContent = 'User';
+    headerRow.appendChild(userTh);
+
+    features.forEach(feature => {
+        const th = document.createElement('th');
+        th.textContent = feature;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Body rows
+    const tbody = document.createElement('tbody');
+    users.forEach(user => {
+        const tr = document.createElement('tr');
+        const userTd = document.createElement('td');
+        userTd.textContent = user.name;
+        tr.appendChild(userTd);
+
+        features.forEach(feature => {
+            const td = document.createElement('td');
+            const select = document.createElement('select');
+            const key = `${user.email}|${feature}`;
+
+            // "None" option
+            const noneOption = document.createElement('option');
+            noneOption.value = '';
+            noneOption.textContent = 'None';
+            select.appendChild(noneOption);
+
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                select.appendChild(option);
             });
-            const data = await res.json();
-            document.getElementById('createUserResult').innerText = JSON.stringify(data, null, 2);
-            if (data.id) {
-                document.getElementById('checkUserId').value = data.id;
+
+            select.value = userFeatureRoles[key] || '';
+            select.onchange = function () {
+                userFeatureRoles[key] = select.value;
+            };
+
+            td.appendChild(select);
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    container.appendChild(table);
+}
+
+// Update navigation to call renderRelationships
+document.getElementById('manageRelationshipsBtn').addEventListener('click', function () {
+    document.getElementById('relationshipsSection').style.display = 'block';
+    document.getElementById('createUserSection').style.display = 'none';
+    document.getElementById('createFeatureSection').style.display = 'none';
+    document.getElementById('manageRolesSection').style.display = 'none';
+    renderRelationships();
+});
+
+// Call renderRelationships after any CRUD change
+function afterCrudChange() {
+    renderUsers();
+    renderFeatures();
+    renderRoles();
+    renderRelationships();
+}
+
+        // Section navigation
+        document.getElementById('manageRelationshipsBtn').addEventListener('click', function () {
+            document.getElementById('relationshipsSection').style.display = 'block';
+            document.getElementById('createUserSection').style.display = 'none';
+            document.getElementById('createFeatureSection').style.display = 'none';
+            document.getElementById('manageRolesSection').style.display = 'none';
+        });
+
+        document.getElementById('addUserBtn').addEventListener('click', function () {
+            document.getElementById('relationshipsSection').style.display = 'none';
+            document.getElementById('createUserSection').style.display = 'block';
+            document.getElementById('createFeatureSection').style.display = 'none';
+            document.getElementById('manageRolesSection').style.display = 'none';
+            renderUsers();
+        });
+
+        document.getElementById('addFeatureBtn').addEventListener('click', function () {
+            document.getElementById('relationshipsSection').style.display = 'none';
+            document.getElementById('createUserSection').style.display = 'none';
+            document.getElementById('createFeatureSection').style.display = 'block';
+            document.getElementById('manageRolesSection').style.display = 'none';
+            renderFeatures();
+        });
+
+        document.getElementById('manageRolesBtn').addEventListener('click', function () {
+            document.getElementById('relationshipsSection').style.display = 'none';
+            document.getElementById('createUserSection').style.display = 'none';
+            document.getElementById('createFeatureSection').style.display = 'none';
+            document.getElementById('manageRolesSection').style.display = 'block';
+            renderRoles();
+        });
+
+        // --- Users CRUD logic ---
+        let users = [];
+
+        function renderUsers() {
+            const userSection = document.getElementById('createUserResult');
+            userSection.innerHTML = '';
+            if (users.length === 0) return;
+            const ul = document.createElement('ul');
+            users.forEach((user, idx) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span id="userNameDisplay${idx}">${user.name} (${user.email})</span>
+                    <input type="text" id="editUserName${idx}" value="${user.name}" style="display:none;">
+                    <input type="email" id="editUserEmail${idx}" value="${user.email}" style="display:none;">
+                    <button onclick="editUser(${idx})">Edit</button>
+                    <button onclick="deleteUser(${idx})">Delete</button>
+                    <button onclick="saveUser(${idx})" style="display:none;">Save</button>
+                    <button onclick="cancelEditUser(${idx})" style="display:none;">Cancel</button>
+                `;
+                ul.appendChild(li);
+            });
+            userSection.appendChild(ul);
+        }
+
+        function createUser() {
+            const name = document.getElementById('userName').value.trim();
+            const email = document.getElementById('userEmail').value.trim();
+            if (name && email && !users.some(u => u.email === email)) {
+                users.push({ name, email });
+                document.getElementById('userName').value = '';
+                document.getElementById('userEmail').value = '';
+                renderUsers();
             }
         }
 
-        async function checkRelationship() {
-            const user_id = document.getElementById('checkUserId').value;
-            const relation = document.getElementById('checkRelation').value;
-            const object = document.getElementById('checkObject').value;
-            const res = await fetch('/check', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({user_id, relation, object})
+        function deleteUser(idx) {
+            users.splice(idx, 1);
+            renderUsers();
+        }
+
+        function editUser(idx) {
+            document.getElementById(`userNameDisplay${idx}`).style.display = 'none';
+            document.getElementById(`editUserName${idx}`).style.display = 'inline';
+            document.getElementById(`editUserEmail${idx}`).style.display = 'inline';
+            const buttons = document.querySelectorAll(`#createUserResult li:nth-child(${idx + 1}) button`);
+            buttons[0].style.display = 'none'; // Edit
+            buttons[1].style.display = 'none'; // Delete
+            buttons[2].style.display = 'inline'; // Save
+            buttons[3].style.display = 'inline'; // Cancel
+        }
+
+        function saveUser(idx) {
+            const newName = document.getElementById(`editUserName${idx}`).value.trim();
+            const newEmail = document.getElementById(`editUserEmail${idx}`).value.trim();
+            if (newName && newEmail && !users.some((u, i) => u.email === newEmail && i !== idx)) {
+                users[idx] = { name: newName, email: newEmail };
+                renderUsers();
+            }
+        }
+
+        function cancelEditUser(idx) {
+            renderUsers();
+        }
+
+        // --- Features CRUD logic ---
+        let features = [];
+
+        function renderFeatures() {
+            const featureSection = document.getElementById('createFeatureResult');
+            featureSection.innerHTML = '';
+            if (features.length === 0) return;
+            const ul = document.createElement('ul');
+            features.forEach((feature, idx) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span id="featureNameDisplay${idx}">${feature}</span>
+                    <input type="text" id="editFeatureInput${idx}" value="${feature}" style="display:none;">
+                    <button onclick="editFeature(${idx})">Edit</button>
+                    <button onclick="deleteFeature(${idx})">Delete</button>
+                    <button onclick="saveFeature(${idx})" style="display:none;">Save</button>
+                    <button onclick="cancelEditFeature(${idx})" style="display:none;">Cancel</button>
+                `;
+                ul.appendChild(li);
             });
-            const data = await res.json();
-            document.getElementById('checkResult').innerText = JSON.stringify(data, null, 2);
+            featureSection.appendChild(ul);
+        }
+
+        function createFeature() {
+            const featureInput = document.getElementById('featureName');
+            const featureName = featureInput.value.trim();
+            if (featureName && !features.includes(featureName)) {
+                features.push(featureName);
+                featureInput.value = '';
+                renderFeatures();
+            }
+        }
+
+        function deleteFeature(idx) {
+            features.splice(idx, 1);
+            renderFeatures();
+        }
+
+        function editFeature(idx) {
+            document.getElementById(`featureNameDisplay${idx}`).style.display = 'none';
+            document.getElementById(`editFeatureInput${idx}`).style.display = 'inline';
+            const buttons = document.querySelectorAll(`#createFeatureResult li:nth-child(${idx + 1}) button`);
+            buttons[0].style.display = 'none'; // Edit
+            buttons[1].style.display = 'none'; // Delete
+            buttons[2].style.display = 'inline'; // Save
+            buttons[3].style.display = 'inline'; // Cancel
+        }
+
+        function saveFeature(idx) {
+            const newName = document.getElementById(`editFeatureInput${idx}`).value.trim();
+            if (newName && !features.includes(newName)) {
+                features[idx] = newName;
+                renderFeatures();
+            }
+        }
+
+        function cancelEditFeature(idx) {
+            renderFeatures();
+        }
+
+        // --- Roles CRUD logic ---
+        let roles = [];
+
+        function renderRoles() {
+            const list = document.getElementById('rolesList');
+            list.innerHTML = '';
+            roles.forEach((role, idx) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span id="roleNameDisplay${idx}">${role}</span>
+                    <input type="text" id="editRoleInput${idx}" value="${role}" style="display:none;">
+                    <button onclick="editRole(${idx})">Edit</button>
+                    <button onclick="deleteRole(${idx})">Delete</button>
+                    <button onclick="saveRole(${idx})" style="display:none;">Save</button>
+                    <button onclick="cancelEdit(${idx})" style="display:none;">Cancel</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function addRole() {
+            const roleInput = document.getElementById('roleName');
+            const roleName = roleInput.value.trim();
+            if (roleName && !roles.includes(roleName)) {
+                roles.push(roleName);
+                roleInput.value = '';
+                renderRoles();
+            }
+        }
+
+        function deleteRole(idx) {
+            roles.splice(idx, 1);
+            renderRoles();
+        }
+
+        function editRole(idx) {
+            document.getElementById(`roleNameDisplay${idx}`).style.display = 'none';
+            document.getElementById(`editRoleInput${idx}`).style.display = 'inline';
+            const buttons = document.querySelectorAll(`#rolesList li:nth-child(${idx + 1}) button`);
+            buttons[0].style.display = 'none'; // Edit
+            buttons[1].style.display = 'none'; // Delete
+            buttons[2].style.display = 'inline'; // Save
+            buttons[3].style.display = 'inline'; // Cancel
+        }
+
+        function saveRole(idx) {
+            const newName = document.getElementById(`editRoleInput${idx}`).value.trim();
+            if (newName && !roles.includes(newName)) {
+                roles[idx] = newName;
+                renderRoles();
+            }
+        }
+
+        function cancelEdit(idx) {
+            renderRoles();
         }
     </script>
 </body>
+
 </html>
