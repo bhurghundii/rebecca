@@ -1,0 +1,553 @@
+{
+	"info": {
+		"name": "Rebecca API",
+		"description": "Complete collection for testing the Rebecca API endpoints - user management and OpenFGA authorization system",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_postman_id": "rebecca-api-collection"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["users", "{{user_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Resources",
+			"item": [
+				{
+					"name": "Get All Resources",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resources",
+							"host": ["{{base_url}}"],
+							"path": ["resources"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Resource",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"resource_type\": \"document\",\n  \"resource_name\": \"My Test Document\",\n  \"metadata\": {\n    \"description\": \"A document created via Postman\",\n    \"category\": \"testing\",\n    \"confidential\": false\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/resources",
+							"host": ["{{base_url}}"],
+							"path": ["resources"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Resource by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resources/{{resource_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resources", "{{resource_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Resource",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"resource_type\": \"document\",\n  \"resource_name\": \"Updated Document Name\",\n  \"metadata\": {\n    \"description\": \"Updated via Postman\",\n    \"category\": \"updated\",\n    \"confidential\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/resources/{{resource_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resources", "{{resource_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Resource",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resources/{{resource_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resources", "{{resource_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Groups",
+			"item": [
+				{
+					"name": "Get All User Groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-groups",
+							"host": ["{{base_url}}"],
+							"path": ["user-groups"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create User Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Engineering Team\",\n  \"description\": \"All engineers working on the platform\",\n  \"user_ids\": [\"{{user_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user-groups",
+							"host": ["{{base_url}}"],
+							"path": ["user-groups"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Group by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-groups/{{group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["user-groups", "{{group_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Group",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Engineering Team\",\n  \"description\": \"Updated description for engineering team\",\n  \"user_ids\": [\"{{user_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user-groups/{{group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["user-groups", "{{group_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User Group",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-groups/{{group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["user-groups", "{{group_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Resource Groups",
+			"item": [
+				{
+					"name": "Get All Resource Groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resource-groups",
+							"host": ["{{base_url}}"],
+							"path": ["resource-groups"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Resource Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Project Documents\",\n  \"description\": \"All documents related to the current project\",\n  \"resource_ids\": [\"{{resource_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/resource-groups",
+							"host": ["{{base_url}}"],
+							"path": ["resource-groups"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Resource Group by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resource-groups/{{resource_group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resource-groups", "{{resource_group_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Resource Group",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Project Documents\",\n  \"description\": \"Updated description for project documents\",\n  \"resource_ids\": [\"{{resource_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/resource-groups/{{resource_group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resource-groups", "{{resource_group_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Resource Group",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/resource-groups/{{resource_group_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["resource-groups", "{{resource_group_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Relationships",
+			"item": [
+				{
+					"name": "Get All Relationships",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/relationships",
+							"host": ["{{base_url}}"],
+							"path": ["relationships"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Relationships with Filters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/relationships?user=user:{{user_id}}&relation=viewer&limit=10&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["relationships"],
+							"query": [
+								{
+									"key": "user",
+									"value": "user:{{user_id}}"
+								},
+								{
+									"key": "relation",
+									"value": "viewer"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Relationship",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user\": \"user:{{user_id}}\",\n  \"relation\": \"editor\",\n  \"object\": \"document:{{resource_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/relationships",
+							"host": ["{{base_url}}"],
+							"path": ["relationships"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Relationship by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/relationships/{{relationship_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["relationships", "{{relationship_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Relationship",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user\": \"user:{{user_id}}\",\n  \"relation\": \"owner\",\n  \"object\": \"document:{{resource_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/relationships/{{relationship_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["relationships", "{{relationship_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Relationship",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/relationships/{{relationship_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["relationships", "{{relationship_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Relationship Permission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user\": \"user:{{user_id}}\",\n  \"relation\": \"viewer\",\n  \"object\": \"document:{{resource_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/relationships/check",
+							"host": ["{{base_url}}"],
+							"path": ["relationships", "check"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "resource_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "group_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "resource_group_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "relationship_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
