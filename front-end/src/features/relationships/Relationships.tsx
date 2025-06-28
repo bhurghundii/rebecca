@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { relationshipService, userService, resourceService } from '../../services'
 import type { 
   Relationship, 
-  CreateRelationshipRequest, 
+  CreateRelationshipRequest,
+  UpdateRelationshipRequest,
   User, 
   Resource 
 } from '../../types/api'
@@ -13,9 +14,10 @@ export function Relationships() {
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CreateRelationshipRequest>({
     user: '',
-    relation: 'can_read',
+    relation: 'reader',
     object: ''
   })
 
@@ -44,12 +46,46 @@ export function Relationships() {
   const createRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await relationshipService.createRelationship(formData)
-      setFormData({ user: '', relation: 'can_read', object: '' })
+      if (editingId) {
+        // Update existing relationship
+        await relationshipService.updateRelationship(editingId, formData)
+        setEditingId(null)
+      } else {
+        // Create new relationship
+        await relationshipService.createRelationship(formData)
+      }
+      setFormData({ user: '', relation: 'reader', object: '' })
       setShowForm(false)
       loadData()
     } catch (error) {
-      console.error('Failed to create relationship:', error)
+      console.error('Failed to save relationship:', error)
+    }
+  }
+
+  const startEdit = (relationship: Relationship) => {
+    setFormData({
+      user: relationship.user,
+      relation: relationship.relation,
+      object: relationship.object
+    })
+    setEditingId(relationship.id)
+    setShowForm(true)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setFormData({ user: '', relation: 'reader', object: '' })
+    setShowForm(false)
+  }
+
+  const deleteRelationship = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this relationship?')) {
+      try {
+        await relationshipService.deleteRelationship(id)
+        loadData()
+      } catch (error) {
+        console.error('Failed to delete relationship:', error)
+      }
     }
   }
 
@@ -69,11 +105,17 @@ export function Relationships() {
 
   const getRelationBadge = (relation: string) => {
     const colors = {
+      reader: 'bg-green-100 text-green-800',
+      writer: 'bg-yellow-100 text-yellow-800',
+      editor: 'bg-orange-100 text-orange-800',
+      owner: 'bg-blue-100 text-blue-800',
+      admin: 'bg-purple-100 text-purple-800',
+      viewer: 'bg-emerald-100 text-emerald-800',
+      commenter: 'bg-cyan-100 text-cyan-800',
+      // Legacy support for old can_ format
       can_read: 'bg-green-100 text-green-800',
       can_write: 'bg-yellow-100 text-yellow-800',
-      can_delete: 'bg-red-100 text-red-800',
-      owner: 'bg-blue-100 text-blue-800',
-      admin: 'bg-purple-100 text-purple-800'
+      can_delete: 'bg-red-100 text-red-800'
     }
     return colors[relation as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
@@ -83,7 +125,7 @@ export function Relationships() {
       <div className="flex justify-between items-center pb-4 border-b-2 border-gray-200">
         <h2 className="text-3xl font-bold text-gray-800">🔗 Relationships Management</h2>
         <button 
-          onClick={() => setShowForm(!showForm)} 
+          onClick={() => editingId ? cancelEdit() : setShowForm(!showForm)} 
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
         >
           {showForm ? 'Cancel' : '+ Add Relationship'}
@@ -92,7 +134,9 @@ export function Relationships() {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-6">Create New Relationship</h3>
+          <h3 className="text-xl font-semibold text-gray-800 mb-6">
+            {editingId ? 'Edit Relationship' : 'Create New Relationship'}
+          </h3>
           <form onSubmit={createRelationship} className="space-y-4 max-w-md">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">User:</label>
@@ -118,11 +162,13 @@ export function Relationships() {
                 onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="can_read">Can Read</option>
-                <option value="can_write">Can Write</option>
-                <option value="can_delete">Can Delete</option>
+                <option value="reader">Reader</option>
+                <option value="writer">Writer</option>
+                <option value="editor">Editor</option>
                 <option value="owner">Owner</option>
                 <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+                <option value="commenter">Commenter</option>
               </select>
             </div>
             
@@ -144,7 +190,7 @@ export function Relationships() {
             </div>
             
             <button type="submit" className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium">
-              Create Relationship
+              {editingId ? 'Update Relationship' : 'Create Relationship'}
             </button>
           </form>
         </div>
@@ -166,6 +212,7 @@ export function Relationships() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -173,12 +220,32 @@ export function Relationships() {
                   <tr key={rel.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getUserName(rel.user)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRelationBadge(rel.relation)}`}>
+                      <span 
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getRelationBadge(rel.relation)}`}
+                        onClick={() => startEdit(rel)}
+                        title="Click to edit"
+                      >
                         {rel.relation}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getResourceName(rel.object)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(rel.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => startEdit(rel)}
+                        className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        title="Edit relationship"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteRelationship(rel.id)}
+                        className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                        title="Delete relationship"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
