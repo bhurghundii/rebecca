@@ -32,6 +32,50 @@ export interface CreateResourceRequest {
   }
 }
 
+export interface UserGroup {
+  id: string
+  name: string
+  description?: string
+  users: User[]
+  user_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateUserGroupRequest {
+  name: string
+  description?: string
+  user_ids: string[]
+}
+
+export interface UpdateUserGroupRequest {
+  name?: string
+  description?: string
+  user_ids?: string[]
+}
+
+export interface ResourceGroup {
+  id: string
+  name: string
+  description?: string
+  resources: Resource[]
+  resource_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateResourceGroupRequest {
+  name: string
+  description?: string
+  resource_ids: string[]
+}
+
+export interface UpdateResourceGroupRequest {
+  name?: string
+  description?: string
+  resource_ids?: string[]
+}
+
 export interface Relationship {
   id: string
   user: string
