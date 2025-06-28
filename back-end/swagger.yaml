@@ -1,0 +1,1294 @@
+openapi: 3.0.4
+info:
+  title: Rebecca API
+  description: |-
+    Rebecca API provides a comprehensive set of functions for user management and controls over OpenFGA 
+    (Open Fine-Grained Authorization). This API enables you to perform a bunch of user management operations
+    and authorization controls including:
+    
+    - Create and manage users with automatic permissions
+    - Create groups with different user types (admin, moderator, standard)
+    - Check authorization permissions in real-time
+    - Add and manage relationships between users and resources
+    - Create and manage different types of resources
+    - Health monitoring and system status checks
+    
+    Built on top of OpenFGA which uses relationship-based access control (ReBAC).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+tags:
+  - name: health
+    description: Health check and system status
+  - name: users
+    description: CRUD operations for individual users
+  - name: resources
+    description: CRUD operations for individual resources
+  - name: user-groups
+    description: CRUD operations for user groups (collections of users)
+  - name: resource-groups
+    description: CRUD operations for resource groups (collections of resources)
+  - name: relationships
+    description: CRUD operations for relationships between users and resources (OpenFGA tuples)
+  - name: relationships
+    description: CRUD operations for OpenFGA relationships between users and resources
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check and OpenFGA connection test
+      description: Check the health of the Rebecca API service and test the connection to the OpenFGA service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy and OpenFGA connection successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+        '500':
+          description: Service unhealthy or OpenFGA connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users:
+    get:
+      tags:
+        - users
+      summary: Get all users
+      description: Retrieve a list of all users
+      operationId: getUsers
+      responses:
+        '200':
+          description: List of users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - users
+      summary: Create a new user
+      description: Create a new user in the system
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}:
+    get:
+      tags:
+        - users
+      summary: Get user by ID
+      description: Retrieve a specific user by their ID
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The ID of the user to retrieve
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - users
+      summary: Update user
+      description: Update an existing user's information
+      operationId: updateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The ID of the user to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - users
+      summary: Delete user
+      description: Delete a user from the system
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The ID of the user to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted successfully
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resources:
+    get:
+      tags:
+        - resources
+      summary: Get all resources
+      description: Retrieve a list of all resources
+      operationId: getResources
+      responses:
+        '200':
+          description: List of resources retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - resources
+      summary: Create a new resource
+      description: Create a new resource in the system
+      operationId: createResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourceRequest'
+      responses:
+        '201':
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resources/{resourceId}:
+    get:
+      tags:
+        - resources
+      summary: Get resource by ID
+      description: Retrieve a specific resource by its ID
+      operationId: getResourceById
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          description: The ID of the resource to retrieve
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resource retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - resources
+      summary: Update resource
+      description: Update an existing resource's information
+      operationId: updateResource
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          description: The ID of the resource to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceRequest'
+      responses:
+        '200':
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - resources
+      summary: Delete resource
+      description: Delete a resource from the system
+      operationId: deleteResource
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          description: The ID of the resource to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Resource deleted successfully
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user-groups:
+    get:
+      tags:
+        - user-groups
+      summary: Get all user groups
+      description: Retrieve a list of all user groups
+      operationId: getUserGroups
+      responses:
+        '200':
+          description: List of user groups retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserGroup'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - user-groups
+      summary: Create a new user group
+      description: Create a new user group (collection of users)
+      operationId: createUserGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserGroupRequest'
+      responses:
+        '201':
+          description: User group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user-groups/{groupId}:
+    get:
+      tags:
+        - user-groups
+      summary: Get user group by ID
+      description: Retrieve a specific user group by its ID
+      operationId: getUserGroupById
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the user group to retrieve
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User group retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+        '404':
+          description: User group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - user-groups
+      summary: Update user group
+      description: Update an existing user group's information
+      operationId: updateUserGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the user group to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserGroupRequest'
+      responses:
+        '200':
+          description: User group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - user-groups
+      summary: Delete user group
+      description: Delete a user group from the system
+      operationId: deleteUserGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the user group to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User group deleted successfully
+        '404':
+          description: User group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resource-groups:
+    get:
+      tags:
+        - resource-groups
+      summary: Get all resource groups
+      description: Retrieve a list of all resource groups
+      operationId: getResourceGroups
+      responses:
+        '200':
+          description: List of resource groups retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceGroup'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - resource-groups
+      summary: Create a new resource group
+      description: Create a new resource group (collection of resources)
+      operationId: createResourceGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourceGroupRequest'
+      responses:
+        '201':
+          description: Resource group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGroup'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resource-groups/{groupId}:
+    get:
+      tags:
+        - resource-groups
+      summary: Get resource group by ID
+      description: Retrieve a specific resource group by its ID
+      operationId: getResourceGroupById
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the resource group to retrieve
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resource group retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGroup'
+        '404':
+          description: Resource group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - resource-groups
+      summary: Update resource group
+      description: Update an existing resource group's information
+      operationId: updateResourceGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the resource group to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceGroupRequest'
+      responses:
+        '200':
+          description: Resource group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGroup'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - resource-groups
+      summary: Delete resource group
+      description: Delete a resource group from the system
+      operationId: deleteResourceGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: The ID of the resource group to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Resource group deleted successfully
+        '404':
+          description: Resource group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /relationships:
+    get:
+      tags:
+        - relationships
+      summary: Get all relationships
+      description: Retrieve all relationships (user to resource mappings)
+      operationId: getRelationships
+      parameters:
+        - name: user
+          in: query
+          description: Filter by user ID
+          required: false
+          schema:
+            type: string
+        - name: resource
+          in: query
+          description: Filter by resource ID
+          required: false
+          schema:
+            type: string
+        - name: relation
+          in: query
+          description: Filter by relation type
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of relationships to return
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          description: Number of relationships to skip
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Relationship'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - relationships
+      summary: Create a new relationship
+      description: Create a new relationship between a user and a resource
+      operationId: createRelationship
+      requestBody:
+        description: Relationship to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRelationshipRequest'
+        required: true
+      responses:
+        '201':
+          description: Relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Relationship already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /relationships/{relationshipId}:
+    get:
+      tags:
+        - relationships
+      summary: Get a relationship by ID
+      description: Retrieve a specific relationship by its ID
+      operationId: getRelationshipById
+      parameters:
+        - name: relationshipId
+          in: path
+          description: ID of the relationship to retrieve
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        '404':
+          description: Relationship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - relationships
+      summary: Update a relationship
+      description: Update an existing relationship
+      operationId: updateRelationship
+      parameters:
+        - name: relationshipId
+          in: path
+          description: ID of the relationship to update
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Updated relationship data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRelationshipRequest'
+        required: true
+      responses:
+        '200':
+          description: Relationship updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Relationship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - relationships
+      summary: Delete a relationship
+      description: Delete a relationship by ID
+      operationId: deleteRelationship
+      parameters:
+        - name: relationshipId
+          in: path
+          description: ID of the relationship to delete
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Relationship deleted successfully
+        '404':
+          description: Relationship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /relationships/check:
+    post:
+      tags:
+        - relationships
+      summary: Check relationship permission
+      description: Check if a user has a specific relationship/permission to a resource
+      operationId: checkRelationship
+      requestBody:
+        description: Relationship check request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckRelationshipRequest'
+        required: true
+      responses:
+        '200':
+          description: Check completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckRelationshipResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User's display name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john.doe@example.com"
+      required:
+        - name
+        - email
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User's display name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john.doe@example.com"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: User's display name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john.doe@example.com"
+        created_at:
+          type: string
+          format: date-time
+          description: When the user was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the user was last updated
+      required:
+        - id
+        - name
+        - email
+        - created_at
+        - updated_at
+
+    CreateResourceRequest:
+      type: object
+      properties:
+        resource_type:
+          type: string
+          description: Type of resource to create
+          example: "document"
+          enum:
+            - document
+            - project
+            - organization
+            - folder
+            - file
+        resource_name:
+          type: string
+          description: Name of the resource
+          example: "Project Requirements Doc"
+        metadata:
+          type: object
+          description: Additional metadata for the resource
+          additionalProperties: true
+          example:
+            description: "Contains all project requirements"
+            category: "documentation"
+      required:
+        - resource_type
+        - resource_name
+
+    UpdateResourceRequest:
+      type: object
+      properties:
+        resource_type:
+          type: string
+          description: Type of resource
+          example: "document"
+          enum:
+            - document
+            - project
+            - organization
+            - folder
+            - file
+        resource_name:
+          type: string
+          description: Name of the resource
+          example: "Project Requirements Doc"
+        metadata:
+          type: object
+          description: Additional metadata for the resource
+          additionalProperties: true
+          example:
+            description: "Contains all project requirements"
+            category: "documentation"
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Resource ID
+          example: "789e0123-e89b-12d3-a456-426614174000"
+        type:
+          type: string
+          description: Resource type
+          example: "document"
+        name:
+          type: string
+          description: Resource name
+          example: "Project Requirements Doc"
+        metadata:
+          type: object
+          description: Resource metadata
+          additionalProperties: true
+          example:
+            description: "Contains all project requirements"
+            category: "documentation"
+        created_at:
+          type: string
+          format: date-time
+          description: When the resource was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the resource was last updated
+      required:
+        - id
+        - type
+        - name
+        - metadata
+        - created_at
+        - updated_at
+
+    CreateUserGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the user group
+          example: "Engineering Team"
+        description:
+          type: string
+          description: Description of the user group
+          example: "All engineers working on the platform"
+        user_ids:
+          type: array
+          description: List of user IDs to include in the group
+          items:
+            type: string
+            format: uuid
+          example: ["123e4567-e89b-12d3-a456-426614174000", "456e7890-e89b-12d3-a456-426614174001"]
+      required:
+        - name
+        - user_ids
+
+    UpdateUserGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the user group
+          example: "Engineering Team"
+        description:
+          type: string
+          description: Description of the user group
+          example: "All engineers working on the platform"
+        user_ids:
+          type: array
+          description: List of user IDs to include in the group
+          items:
+            type: string
+            format: uuid
+          example: ["123e4567-e89b-12d3-a456-426614174000", "456e7890-e89b-12d3-a456-426614174001"]
+
+    UserGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User group ID
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: User group name
+          example: "Engineering Team"
+        description:
+          type: string
+          description: Description of the user group
+          example: "All engineers working on the platform"
+        users:
+          type: array
+          description: List of users in the group
+          items:
+            $ref: '#/components/schemas/User'
+        user_count:
+          type: integer
+          description: Number of users in the group
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          description: When the user group was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the user group was last updated
+      required:
+        - id
+        - name
+        - users
+        - user_count
+        - created_at
+        - updated_at
+
+    CreateResourceGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the resource group
+          example: "Project Documents"
+        description:
+          type: string
+          description: Description of the resource group
+          example: "All documents related to the current project"
+        resource_ids:
+          type: array
+          description: List of resource IDs to include in the group
+          items:
+            type: string
+            format: uuid
+          example: ["789e0123-e89b-12d3-a456-426614174000", "890e1234-e89b-12d3-a456-426614174001"]
+      required:
+        - name
+        - resource_ids
+
+    UpdateResourceGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the resource group
+          example: "Project Documents"
+        description:
+          type: string
+          description: Description of the resource group
+          example: "All documents related to the current project"
+        resource_ids:
+          type: array
+          description: List of resource IDs to include in the group
+          items:
+            type: string
+            format: uuid
+          example: ["789e0123-e89b-12d3-a456-426614174000", "890e1234-e89b-12d3-a456-426614174001"]
+
+    ResourceGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Resource group ID
+          example: "456e7890-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Resource group name
+          example: "Project Documents"
+        description:
+          type: string
+          description: Description of the resource group
+          example: "All documents related to the current project"
+        resources:
+          type: array
+          description: List of resources in the group
+          items:
+            $ref: '#/components/schemas/Resource'
+        resource_count:
+          type: integer
+          description: Number of resources in the group
+          example: 10
+        created_at:
+          type: string
+          format: date-time
+          description: When the resource group was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the resource group was last updated
+      required:
+        - id
+        - name
+        - resources
+        - resource_count
+        - created_at
+        - updated_at
+
+    Relationship:
+      type: object
+      required:
+        - id
+        - user
+        - relation
+        - object
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the relationship
+        user:
+          type: string
+          description: User ID or user:id format
+        relation:
+          type: string
+          description: Relation type (e.g., viewer, editor, owner)
+        object:
+          type: string
+          description: Resource object in format type:id
+        created_at:
+          type: string
+          format: date-time
+          description: When the relationship was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the relationship was last updated
+
+    CreateRelationshipRequest:
+      type: object
+      required:
+        - user
+        - relation
+        - object
+      properties:
+        user:
+          type: string
+          description: User ID or user:id format
+        relation:
+          type: string
+          description: Relation type (e.g., viewer, editor, owner)
+        object:
+          type: string
+          description: Resource object in format type:id
+
+    UpdateRelationshipRequest:
+      type: object
+      properties:
+        user:
+          type: string
+          description: User ID or user:id format
+        relation:
+          type: string
+          description: Relation type (e.g., viewer, editor, owner)
+        object:
+          type: string
+          description: Resource object in format type:id
+
+    CheckRelationshipRequest:
+      type: object
+      required:
+        - user
+        - relation
+        - object
+      properties:
+        user:
+          type: string
+          description: User ID or user:id format
+        relation:
+          type: string
+          description: Relation type to check (e.g., viewer, editor, owner)
+        object:
+          type: string
+          description: Resource object in format type:id
+
+    CheckRelationshipResponse:
+      type: object
+      required:
+        - allowed
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the user has the specified relationship to the resource
+        checked_at:
+          type: string
+          format: date-time
+          description: When the check was performed
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code or type
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
