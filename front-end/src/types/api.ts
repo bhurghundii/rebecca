@@ -14,6 +14,7 @@ export interface Resource {
   id: string
   name: string
   resource_type: string
+  resource_group_id: string
   metadata: {
     description?: string
     category?: string
@@ -25,6 +26,7 @@ export interface Resource {
 export interface CreateResourceRequest {
   resource_name: string
   resource_type: string
+  resource_group_id: string
   metadata: {
     description?: string
     category?: string

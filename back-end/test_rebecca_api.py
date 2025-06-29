@@ -404,5 +404,150 @@ class TestResourceGroups:
         # Cleanup
         requests.delete(f"{BASE_URL}/resource-groups/{group['id']}")
 
+# Test OpenFGA Integration
+# =============================================================================
+
+def test_user_group_creates_member_relationships():
+    """Test that creating a user group automatically creates OpenFGA member relationships"""
+    # Create a test user first
+    user_data = {
+        "name": "Test User OpenFGA",
+        "email": "testopenfga@example.com"
+    }
+    user_response = requests.post(f"{BASE_URL}/users", json=user_data)
+    assert user_response.status_code == 201
+    user = user_response.json()
+    user_id = user['id']
+    
+    try:
+        # Create a user group with this user
+        group_data = {
+            "name": "Test Group OpenFGA",
+            "description": "Test group for OpenFGA integration",
+            "user_ids": [user_id]
+        }
+        group_response = requests.post(f"{BASE_URL}/user-groups", json=group_data)
+        assert group_response.status_code == 201
+        group = group_response.json()
+        group_id = group['id']
+        
+        # Check that a member relationship was created
+        time.sleep(0.1)  # Brief pause for relationship creation
+        relationships_response = requests.get(f"{BASE_URL}/relationships")
+        assert relationships_response.status_code == 200
+        relationships = relationships_response.json()
+        
+        # Find the member relationship
+        member_relationship = None
+        for rel in relationships:
+            if (rel['user'] == f"user:{user_id}" and 
+                rel['relation'] == 'member' and 
+                rel['object'] == f"group:{group_id}"):
+                member_relationship = rel
+                break
+        
+        assert member_relationship is not None, "Member relationship should be created automatically"
+        assert member_relationship['user'] == f"user:{user_id}"
+        assert member_relationship['relation'] == 'member'
+        assert member_relationship['object'] == f"group:{group_id}"
+        
+        # Test updating the group to remove the user
+        updated_group_data = {
+            "name": "Test Group OpenFGA Updated",
+            "description": "Updated test group",
+            "user_ids": []  # Remove the user
+        }
+        update_response = requests.put(f"{BASE_URL}/user-groups/{group_id}", json=updated_group_data)
+        assert update_response.status_code == 200
+        
+        # Check that the member relationship was removed
+        time.sleep(0.1)  # Brief pause for relationship removal
+        relationships_response = requests.get(f"{BASE_URL}/relationships")
+        assert relationships_response.status_code == 200
+        updated_relationships = relationships_response.json()
+        
+        # The member relationship should no longer exist
+        member_relationship_exists = False
+        for rel in updated_relationships:
+            if (rel['user'] == f"user:{user_id}" and 
+                rel['relation'] == 'member' and 
+                rel['object'] == f"group:{group_id}"):
+                member_relationship_exists = True
+                break
+        
+        assert not member_relationship_exists, "Member relationship should be removed when user is removed from group"
+        
+    finally:
+        # Cleanup
+        try:
+            requests.delete(f"{BASE_URL}/user-groups/{group_id}")
+        except:
+            pass
+        try:
+            requests.delete(f"{BASE_URL}/users/{user_id}")
+        except:
+            pass
+
+def test_user_group_deletion_removes_member_relationships():
+    """Test that deleting a user group removes all member relationships"""
+    # Create test users
+    user1_data = {"name": "Test User 1", "email": "test1@example.com"}
+    user2_data = {"name": "Test User 2", "email": "test2@example.com"}
+    
+    user1_response = requests.post(f"{BASE_URL}/users", json=user1_data)
+    user2_response = requests.post(f"{BASE_URL}/users", json=user2_data)
+    
+    assert user1_response.status_code == 201
+    assert user2_response.status_code == 201
+    
+    user1 = user1_response.json()
+    user2 = user2_response.json()
+    
+    try:
+        # Create a user group with both users
+        group_data = {
+            "name": "Test Group for Deletion",
+            "description": "Test group to be deleted",
+            "user_ids": [user1['id'], user2['id']]
+        }
+        group_response = requests.post(f"{BASE_URL}/user-groups", json=group_data)
+        assert group_response.status_code == 201
+        group = group_response.json()
+        group_id = group['id']
+        
+        # Verify member relationships were created
+        time.sleep(0.1)
+        relationships_response = requests.get(f"{BASE_URL}/relationships")
+        relationships = relationships_response.json()
+        
+        member_relationships = [
+            rel for rel in relationships 
+            if rel['relation'] == 'member' and rel['object'] == f"group:{group_id}"
+        ]
+        assert len(member_relationships) == 2, "Should have 2 member relationships"
+        
+        # Delete the group
+        delete_response = requests.delete(f"{BASE_URL}/user-groups/{group_id}")
+        assert delete_response.status_code == 204
+        
+        # Verify member relationships were removed
+        time.sleep(0.1)
+        relationships_response = requests.get(f"{BASE_URL}/relationships")
+        updated_relationships = relationships_response.json()
+        
+        remaining_member_relationships = [
+            rel for rel in updated_relationships 
+            if rel['relation'] == 'member' and rel['object'] == f"group:{group_id}"
+        ]
+        assert len(remaining_member_relationships) == 0, "All member relationships should be removed when group is deleted"
+        
+    finally:
+        # Cleanup users
+        try:
+            requests.delete(f"{BASE_URL}/users/{user1['id']}")
+            requests.delete(f"{BASE_URL}/users/{user2['id']}")
+        except:
+            pass
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
