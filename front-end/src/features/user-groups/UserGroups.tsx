@@ -76,7 +76,12 @@ export function UserGroups() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center pb-4 border-b-2 border-gray-200">
-        <h2 className="text-3xl font-bold text-gray-800">👥 User Groups Management</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">👥 User Groups Management</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            🔗 Adding users to groups automatically creates OpenFGA "member" relationships
+          </p>
+        </div>
         <button 
           onClick={() => setShowForm(!showForm)} 
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
