@@ -9,6 +9,11 @@ from typing import Optional
 # Database configuration
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'rebecca.db')
 
+# OpenFGA configuration
+OPENFGA_API_URL = os.getenv('OPENFGA_URL', 'http://localhost:8080')
+OPENFGA_STORE_ID = os.getenv('OPENFGA_STORE_ID', '01JYYK7BG878R7NVQRECYFT5C4')
+OPENFGA_MODEL_ID = os.getenv('OPENFGA_MODEL_ID', '01JYYK7D1CY0KMVPJV6HVYZMEH')
+
 def get_db_connection() -> sqlite3.Connection:
     """Get a database connection with row factory for dict-like access"""
     conn = sqlite3.connect(DATABASE_PATH)
