@@ -133,12 +133,23 @@ export function Relationships() {
 
   // Helper function to get relationship between user and resource
   const getUserResourceRelation = (userId: string, resourceId: string) => {
-    return relationships.find(rel => rel.user === userId && rel.object === resourceId)
+    // Find the resource to get its type for the OpenFGA format
+    const resource = resources.find(r => r.id === resourceId)
+    const resourceType = resource ? resource.type : 'resource'
+    
+    return relationships.find(rel => 
+      rel.user === `user:${userId}` && 
+      rel.object === `${resourceType}:${resourceId}`
+    )
   }
 
   // Helper function to update or create relationship
   const updateMatrixRelation = async (userId: string, resourceId: string, newRelation: string) => {
     const existingRelation = getUserResourceRelation(userId, resourceId)
+    
+    // Find the resource to get its type for the OpenFGA format
+    const resource = resources.find(r => r.id === resourceId)
+    const resourceType = resource ? resource.type : 'resource'
     
     try {
       if (existingRelation) {
@@ -150,11 +161,11 @@ export function Relationships() {
           await relationshipService.updateRelationship(existingRelation.id, { relation: newRelation })
         }
       } else if (newRelation !== 'none') {
-        // Create new relationship
+        // Create new relationship with OpenFGA format
         await relationshipService.createRelationship({
-          user: userId,
+          user: `user:${userId}`,
           relation: newRelation,
-          object: resourceId
+          object: `${resourceType}:${resourceId}`
         })
       }
       loadData()
@@ -245,11 +256,11 @@ export function Relationships() {
                             className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px]"
                             title={`${user.name} → ${resource.name}`}
                           >
-                            <option value="reader">Viewer</option>
-                            <option value="writer">Writer</option>
+                            <option value="reader">Reader</option>
+                            <option value="viewer">Viewer</option>
                             <option value="editor">Editor</option>
                             <option value="owner">Owner</option>
-                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
                           </select>
                         ) : (
                           <select
@@ -259,11 +270,11 @@ export function Relationships() {
                             title={`${user.name} → ${resource.name}`}
                           >
                             <option value="none">-</option>
-                            <option value="reader">Viewer</option>
-                            <option value="writer">Writer</option>
+                            <option value="reader">Reader</option>
+                            <option value="viewer">Viewer</option>
                             <option value="editor">Editor</option>
                             <option value="owner">Owner</option>
-                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
                           </select>
                         )}
                       </td>
