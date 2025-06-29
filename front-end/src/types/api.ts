@@ -13,8 +13,9 @@ export interface CreateUserRequest {
 export interface Resource {
   id: string
   name: string
-  resource_type: string
+  type: string
   resource_group_id: string
+  resource_group_name?: string
   metadata: {
     description?: string
     category?: string
