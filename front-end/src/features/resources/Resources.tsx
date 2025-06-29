@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { resourceService } from '../../services'
-import type { Resource, CreateResourceRequest } from '../../types/api'
+import { resourceService, resourceGroupService } from '../../services'
+import type { Resource, CreateResourceRequest, ResourceGroup } from '../../types/api'
 
 export function Resources() {
   const [resources, setResources] = useState<Resource[]>([])
+  const [resourceGroups, setResourceGroups] = useState<ResourceGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
@@ -14,15 +15,19 @@ export function Resources() {
   })
 
   useEffect(() => {
-    loadResources()
+    loadData()
   }, [])
 
-  const loadResources = async () => {
+  const loadData = async () => {
     try {
-      const data = await resourceService.getResources()
-      setResources(data)
+      const [resourcesData, resourceGroupsData] = await Promise.all([
+        resourceService.getResources(),
+        resourceGroupService.getResourceGroups()
+      ])
+      setResources(resourcesData)
+      setResourceGroups(resourceGroupsData)
     } catch (error) {
-      console.error('Failed to load resources:', error)
+      console.error('Failed to load data:', error)
     } finally {
       setLoading(false)
     }
@@ -42,7 +47,7 @@ export function Resources() {
       await resourceService.createResource(payload)
       setFormData({ resource_name: '', resource_type: 'document', description: '', category: '' })
       setShowForm(false)
-      loadResources()
+      loadData()
     } catch (error) {
       console.error('Failed to create resource:', error)
     }
@@ -60,6 +65,30 @@ export function Resources() {
       system: 'bg-red-100 text-red-800'
     }
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  const getResourceGroupBadges = (resourceId: string) => {
+    const groups = resourceGroups.filter(group => 
+      group.resources.some(resource => resource.id === resourceId)
+    )
+    
+    if (groups.length === 0) {
+      return <span className="text-gray-400 italic">No groups</span>
+    }
+    
+    return (
+      <div className="flex flex-wrap gap-1">
+        {groups.map(group => (
+          <span 
+            key={group.id}
+            className="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full"
+            title={group.description || group.name}
+          >
+            {group.name}
+          </span>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -146,6 +175,7 @@ export function Resources() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Groups</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                 </tr>
@@ -159,6 +189,9 @@ export function Resources() {
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResourceTypeBadge(resource.resource_type)}`}>
                         {resource.resource_type}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {getResourceGroupBadges(resource.id)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{resource.metadata?.description || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(resource.created_at).toLocaleDateString()}</td>
