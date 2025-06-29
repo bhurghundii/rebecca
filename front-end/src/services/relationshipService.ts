@@ -1,7 +1,8 @@
 import { apiClient } from './api'
 import type { 
   Relationship, 
-  CreateRelationshipRequest, 
+  CreateRelationshipRequest,
+  UpdateRelationshipRequest,
   PermissionCheckRequest, 
   PermissionCheckResponse 
 } from '../types/api'
@@ -29,5 +30,10 @@ export const relationshipService = {
   async checkPermission(permissionData: PermissionCheckRequest): Promise<PermissionCheckResponse> {
     const response = await apiClient.post<PermissionCheckResponse>('/relationships/check', permissionData)
     return response.data
-  }
+  },
+
+  async updateRelationship(id: string, relationshipData: UpdateRelationshipRequest): Promise<Relationship> {
+    const response = await apiClient.put<Relationship>(`/relationships/${id}`, relationshipData)
+    return response.data
+  },
 }

@@ -1,26 +1,8 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-
-const API_BASE = 'http://localhost:8000'
-
-interface Relationship {
-  id: string
-  user: string
-  relation: string
-  object: string
-  created_at: string
-}
-
-interface User {
-  id: string
-  name: string
-  email: string
-}
-
-interface Resource {
-  id: string
-  name: string
-}
+import { relationshipService } from '../services/relationshipService'
+import { userService } from '../services/userService'
+import { resourceService } from '../services/resourceService'
+import type { Relationship, User, Resource } from '../types/api'
 
 function Relationships() {
   const [relationships, setRelationships] = useState<Relationship[]>([])
@@ -28,6 +10,7 @@ function Relationships() {
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     user: '',
     relation: 'can_read',
@@ -41,14 +24,14 @@ function Relationships() {
   const loadData = async () => {
     try {
       const [relationshipsRes, usersRes, resourcesRes] = await Promise.all([
-        axios.get(`${API_BASE}/relationships`),
-        axios.get(`${API_BASE}/users`),
-        axios.get(`${API_BASE}/resources`)
+        relationshipService.getRelationships(),
+        userService.getUsers(),
+        resourceService.getResources()
       ])
       
-      setRelationships(relationshipsRes.data)
-      setUsers(usersRes.data)
-      setResources(resourcesRes.data)
+      setRelationships(relationshipsRes)
+      setUsers(usersRes)
+      setResources(resourcesRes)
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -59,12 +42,46 @@ function Relationships() {
   const createRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await axios.post(`${API_BASE}/relationships`, formData)
+      if (editingId) {
+        // Update existing relationship
+        await relationshipService.updateRelationship(editingId, formData)
+        setEditingId(null)
+      } else {
+        // Create new relationship
+        await relationshipService.createRelationship(formData)
+      }
       setFormData({ user: '', relation: 'can_read', object: '' })
       setShowForm(false)
       loadData()
     } catch (error) {
-      console.error('Failed to create relationship:', error)
+      console.error('Failed to save relationship:', error)
+    }
+  }
+
+  const startEdit = (relationship: Relationship) => {
+    setFormData({
+      user: relationship.user,
+      relation: relationship.relation,
+      object: relationship.object
+    })
+    setEditingId(relationship.id)
+    setShowForm(true)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setFormData({ user: '', relation: 'can_read', object: '' })
+    setShowForm(false)
+  }
+
+  const deleteRelationship = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this relationship?')) {
+      try {
+        await relationshipService.deleteRelationship(id)
+        loadData()
+      } catch (error) {
+        console.error('Failed to delete relationship:', error)
+      }
     }
   }
 
@@ -87,7 +104,7 @@ function Relationships() {
       <div className="page-header">
         <h2>🔗 Relationships Management</h2>
         <button 
-          onClick={() => setShowForm(!showForm)} 
+          onClick={() => editingId ? cancelEdit() : setShowForm(!showForm)} 
           className="btn btn-primary"
         >
           {showForm ? 'Cancel' : '+ Add Relationship'}
@@ -96,7 +113,7 @@ function Relationships() {
 
       {showForm && (
         <div className="form-section">
-          <h3>Create New Relationship</h3>
+          <h3>{editingId ? 'Edit Relationship' : 'Create New Relationship'}</h3>
           <form onSubmit={createRelationship} className="simple-form">
             <div className="form-group">
               <label>User:</label>
@@ -144,7 +161,9 @@ function Relationships() {
               </select>
             </div>
             
-            <button type="submit" className="btn btn-success">Create Relationship</button>
+            <button type="submit" className="btn btn-success">
+              {editingId ? 'Update Relationship' : 'Create Relationship'}
+            </button>
           </form>
         </div>
       )}
@@ -162,6 +181,7 @@ function Relationships() {
                 <th>Relation</th>
                 <th>Resource</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -169,12 +189,52 @@ function Relationships() {
                 <tr key={rel.id}>
                   <td>{getUserName(rel.user)}</td>
                   <td>
-                    <span className={`badge badge-${rel.relation.replace('can_', '')}`}>
+                    <span 
+                      className={`badge badge-${rel.relation.replace('can_', '')}`}
+                      onClick={() => startEdit(rel)}
+                      title="Click to edit"
+                      style={{ 
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLSpanElement).style.opacity = '0.8'}
+                      onMouseLeave={(e) => (e.target as HTMLSpanElement).style.opacity = '1'}
+                    >
                       {rel.relation}
                     </span>
                   </td>
                   <td>{getResourceName(rel.object)}</td>
                   <td>{new Date(rel.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <button
+                      onClick={() => startEdit(rel)}
+                      style={{ 
+                        marginRight: '8px', 
+                        padding: '4px 8px', 
+                        border: '1px solid #ccc', 
+                        background: 'white', 
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                      title="Edit relationship"
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      onClick={() => deleteRelationship(rel.id)}
+                      style={{ 
+                        padding: '4px 8px', 
+                        border: '1px solid #dc3545', 
+                        background: '#dc3545', 
+                        color: 'white', 
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                      title="Delete relationship"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

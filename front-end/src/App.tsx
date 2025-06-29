@@ -8,7 +8,7 @@ import {
   Relationships, 
   PermissionChecker, 
   UserGroups, 
-  ResourceGroups 
+  ResourceGroups
 } from './features'
 import { healthService } from './services'
 

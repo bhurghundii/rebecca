@@ -90,6 +90,12 @@ export interface CreateRelationshipRequest {
   object: string
 }
 
+export interface UpdateRelationshipRequest {
+  user?: string
+  relation?: string
+  object?: string
+}
+
 export interface PermissionCheckRequest {
   user: string
   relation: string
