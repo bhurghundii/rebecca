@@ -26,6 +26,68 @@ def get_timestamp():
 def error_response(message, status_code=400):
     return jsonify({"error": message}), status_code
 
+# Helper function to create OpenFGA member relationships for user groups
+def create_member_relationships(group_id, user_ids):
+    """Create 'member' relationships for users in a group"""
+    created_relationships = []
+    timestamp = get_timestamp()
+    
+    for user_id in user_ids:
+        # Check if relationship already exists
+        relationship_exists = False
+        for rel in relationships.values():
+            if (rel['user'] == f"user:{user_id}" and 
+                rel['relation'] == "member" and 
+                rel['object'] == f"group:{group_id}"):
+                relationship_exists = True
+                break
+        
+        if not relationship_exists:
+            rel_id = generate_id()
+            relationship = {
+                "id": rel_id,
+                "user": f"user:{user_id}",
+                "relation": "member",
+                "object": f"group:{group_id}",
+                "created_at": timestamp,
+                "updated_at": timestamp
+            }
+            relationships[rel_id] = relationship
+            created_relationships.append(relationship)
+    
+    return created_relationships
+
+# Helper function to remove OpenFGA member relationships for user groups
+def remove_member_relationships(group_id, user_ids=None):
+    """Remove 'member' relationships for users in a group"""
+    removed_relationships = []
+    
+    # If user_ids is None, remove all member relationships for the group
+    if user_ids is None:
+        to_remove = []
+        for rel_id, rel in relationships.items():
+            if (rel['relation'] == "member" and 
+                rel['object'] == f"group:{group_id}"):
+                to_remove.append(rel_id)
+                removed_relationships.append(rel)
+        
+        for rel_id in to_remove:
+            del relationships[rel_id]
+    else:
+        # Remove relationships for specific users
+        to_remove = []
+        for rel_id, rel in relationships.items():
+            if (rel['relation'] == "member" and 
+                rel['object'] == f"group:{group_id}" and
+                rel['user'] in [f"user:{uid}" for uid in user_ids]):
+                to_remove.append(rel_id)
+                removed_relationships.append(rel)
+        
+        for rel_id in to_remove:
+            del relationships[rel_id]
+    
+    return removed_relationships
+
 # Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -119,8 +181,12 @@ def create_resource():
     """Create a new resource"""
     data = request.get_json()
     
-    if not data or 'resource_type' not in data or 'resource_name' not in data:
-        return error_response("Resource type and name are required", 400)
+    if not data or 'resource_type' not in data or 'resource_name' not in data or 'resource_group_id' not in data:
+        return error_response("Resource type, name, and resource group ID are required", 400)
+    
+    # Validate that the resource group exists
+    if data['resource_group_id'] not in resource_groups:
+        return error_response("Resource group not found", 404)
     
     valid_types = ['document', 'project', 'organization', 'folder', 'file']
     if data['resource_type'] not in valid_types:
@@ -134,11 +200,19 @@ def create_resource():
         "type": data['resource_type'],
         "name": data['resource_name'],
         "metadata": data.get('metadata', {}),
+        "resource_group_id": data['resource_group_id'],
         "created_at": timestamp,
         "updated_at": timestamp
     }
     
     resources[resource_id] = resource
+    
+    # Add the resource to the resource group
+    resource_group = resource_groups[data['resource_group_id']]
+    if resource_id not in resource_group['resource_ids']:
+        resource_group['resource_ids'].append(resource_id)
+        resource_group['updated_at'] = timestamp
+    
     return jsonify(resource), 201
 
 @app.route('/resources/<resource_id>', methods=['GET'])
@@ -160,6 +234,7 @@ def update_resource(resource_id):
         return error_response("Invalid request data", 400)
     
     resource = resources[resource_id]
+    old_group_id = resource.get('resource_group_id')
     
     if 'resource_type' in data:
         valid_types = ['document', 'project', 'organization', 'folder', 'file']
@@ -173,6 +248,29 @@ def update_resource(resource_id):
     if 'metadata' in data:
         resource['metadata'] = data['metadata']
     
+    # Handle resource group change
+    if 'resource_group_id' in data:
+        new_group_id = data['resource_group_id']
+        
+        # Validate that the new resource group exists
+        if new_group_id not in resource_groups:
+            return error_response("Resource group not found", 404)
+        
+        # Remove from old group if it exists
+        if old_group_id and old_group_id in resource_groups:
+            old_group = resource_groups[old_group_id]
+            if resource_id in old_group['resource_ids']:
+                old_group['resource_ids'].remove(resource_id)
+                old_group['updated_at'] = get_timestamp()
+        
+        # Add to new group
+        new_group = resource_groups[new_group_id]
+        if resource_id not in new_group['resource_ids']:
+            new_group['resource_ids'].append(resource_id)
+            new_group['updated_at'] = get_timestamp()
+        
+        resource['resource_group_id'] = new_group_id
+    
     resource['updated_at'] = get_timestamp()
     
     return jsonify(resource), 200
@@ -182,6 +280,16 @@ def delete_resource(resource_id):
     """Delete resource"""
     if resource_id not in resources:
         return error_response("Resource not found", 404)
+    
+    resource = resources[resource_id]
+    resource_group_id = resource.get('resource_group_id')
+    
+    # Remove resource from its resource group
+    if resource_group_id and resource_group_id in resource_groups:
+        resource_group = resource_groups[resource_group_id]
+        if resource_id in resource_group['resource_ids']:
+            resource_group['resource_ids'].remove(resource_id)
+            resource_group['updated_at'] = get_timestamp()
     
     del resources[resource_id]
     return '', 204
@@ -226,6 +334,11 @@ def create_user_group():
     
     user_groups[group_id] = group
     
+    # Create OpenFGA member relationships for users in the group
+    if data['user_ids']:
+        created_relationships = create_member_relationships(group_id, data['user_ids'])
+        print(f"🔗 Created {len(created_relationships)} member relationships for group '{data['name']}'")
+    
     # Return group with user details
     response_group = group.copy()
     response_group['users'] = [users.get(uid, {"id": uid, "name": "Unknown", "email": "unknown@example.com"}) 
@@ -258,13 +371,31 @@ def update_user_group(group_id):
         return error_response("Invalid request data", 400)
     
     group = user_groups[group_id]
+    old_user_ids = set(group.get('user_ids', []))
     
     if 'name' in data:
         group['name'] = data['name']
     if 'description' in data:
         group['description'] = data['description']
     if 'user_ids' in data:
+        new_user_ids = set(data['user_ids'])
+        
+        # Find users to add and remove
+        users_to_add = new_user_ids - old_user_ids
+        users_to_remove = old_user_ids - new_user_ids
+        
+        # Update the group's user_ids
         group['user_ids'] = data['user_ids']
+        
+        # Create relationships for new users
+        if users_to_add:
+            created_relationships = create_member_relationships(group_id, list(users_to_add))
+            print(f"🔗 Created {len(created_relationships)} new member relationships for group '{group['name']}'")
+        
+        # Remove relationships for users no longer in the group
+        if users_to_remove:
+            removed_relationships = remove_member_relationships(group_id, list(users_to_remove))
+            print(f"🔗 Removed {len(removed_relationships)} member relationships from group '{group['name']}'")
     
     group['updated_at'] = get_timestamp()
     
@@ -281,6 +412,13 @@ def delete_user_group(group_id):
     """Delete user group"""
     if group_id not in user_groups:
         return error_response("User group not found", 404)
+    
+    group = user_groups[group_id]
+    
+    # Remove all member relationships for this group
+    removed_relationships = remove_member_relationships(group_id)
+    if removed_relationships:
+        print(f"🔗 Removed {len(removed_relationships)} member relationships for deleted group '{group['name']}'")
     
     del user_groups[group_id]
     return '', 204
@@ -547,24 +685,49 @@ if __name__ == '__main__':
             "updated_at": timestamp
         }
     
-    # Sample resources
+    # Sample resource groups first (since resources require them)
+    sample_resource_groups = [
+        {"name": "Project Documents", "description": "Documents related to project planning and execution"},
+        {"name": "System Resources", "description": "System-level resources and configurations"},
+        {"name": "Shared Assets", "description": "Shared files and documents accessible to team members"}
+    ]
+    
+    for group_data in sample_resource_groups:
+        group_id = generate_id()
+        timestamp = get_timestamp()
+        resource_groups[group_id] = {
+            "id": group_id,
+            "name": group_data["name"],
+            "description": group_data["description"],
+            "resource_ids": [],
+            "created_at": timestamp,
+            "updated_at": timestamp
+        }
+    
+    # Sample resources (now with resource groups)
+    group_ids = list(resource_groups.keys())
     sample_resources = [
-        {"resource_type": "document", "resource_name": "Project Plan", "metadata": {"category": "planning"}},
-        {"resource_type": "project", "resource_name": "Rebecca API", "metadata": {"status": "active"}},
-        {"resource_type": "folder", "resource_name": "Shared Documents", "metadata": {"access": "team"}}
+        {"resource_type": "document", "resource_name": "Project Plan", "metadata": {"category": "planning"}, "resource_group_id": group_ids[0]},
+        {"resource_type": "project", "resource_name": "Rebecca API", "metadata": {"status": "active"}, "resource_group_id": group_ids[1]},
+        {"resource_type": "folder", "resource_name": "Shared Documents", "metadata": {"access": "team"}, "resource_group_id": group_ids[2]}
     ]
     
     for resource_data in sample_resources:
         resource_id = generate_id()
         timestamp = get_timestamp()
-        resources[resource_id] = {
+        resource = {
             "id": resource_id,
             "type": resource_data["resource_type"],
             "name": resource_data["resource_name"],
             "metadata": resource_data["metadata"],
+            "resource_group_id": resource_data["resource_group_id"],
             "created_at": timestamp,
             "updated_at": timestamp
         }
+        resources[resource_id] = resource
+        
+        # Add resource to its group
+        resource_groups[resource_data["resource_group_id"]]["resource_ids"].append(resource_id)
     
     # Sample relationships
     user_ids = list(users.keys())
@@ -593,6 +756,7 @@ if __name__ == '__main__':
     print("📊 Sample data loaded:")
     print(f"   - {len(users)} users")
     print(f"   - {len(resources)} resources") 
+    print(f"   - {len(resource_groups)} resource groups")
     print(f"   - {len(relationships)} relationships")
     print("🌐 Server running on http://localhost:8000")
     

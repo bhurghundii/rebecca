@@ -10,6 +10,7 @@ export function Resources() {
   const [formData, setFormData] = useState({
     resource_name: '',
     resource_type: 'document',
+    resource_group_id: '',
     description: '',
     category: ''
   })
@@ -39,13 +40,14 @@ export function Resources() {
       const payload: CreateResourceRequest = {
         resource_name: formData.resource_name,
         resource_type: formData.resource_type,
+        resource_group_id: formData.resource_group_id,
         metadata: {
           description: formData.description,
           category: formData.category
         }
       }
       await resourceService.createResource(payload)
-      setFormData({ resource_name: '', resource_type: 'document', description: '', category: '' })
+      setFormData({ resource_name: '', resource_type: 'document', resource_group_id: '', description: '', category: '' })
       setShowForm(false)
       loadData()
     } catch (error) {
@@ -67,27 +69,20 @@ export function Resources() {
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
 
-  const getResourceGroupBadges = (resourceId: string) => {
-    const groups = resourceGroups.filter(group => 
-      group.resources.some(resource => resource.id === resourceId)
-    )
+  const getResourceGroupBadge = (resourceGroupId: string) => {
+    const group = resourceGroups.find(group => group.id === resourceGroupId)
     
-    if (groups.length === 0) {
-      return <span className="text-gray-400 italic">No groups</span>
+    if (!group) {
+      return <span className="text-gray-400 italic">No group</span>
     }
     
     return (
-      <div className="flex flex-wrap gap-1">
-        {groups.map(group => (
-          <span 
-            key={group.id}
-            className="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full"
-            title={group.description || group.name}
-          >
-            {group.name}
-          </span>
-        ))}
-      </div>
+      <span 
+        className="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full"
+        title={group.description || group.name}
+      >
+        {group.name}
+      </span>
     )
   }
 
@@ -129,6 +124,23 @@ export function Resources() {
                 <option value="folder">Folder</option>
                 <option value="file">File</option>
                 <option value="system">System</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Resource Group: <span className="text-red-500">*</span></label>
+              <select
+                value={formData.resource_group_id}
+                onChange={(e) => setFormData({ ...formData, resource_group_id: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a resource group</option>
+                {resourceGroups.map(group => (
+                  <option key={group.id} value={group.id}>
+                    {group.name} ({group.resource_count} resources)
+                  </option>
+                ))}
               </select>
             </div>
             
@@ -175,7 +187,7 @@ export function Resources() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Groups</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                 </tr>
@@ -191,7 +203,7 @@ export function Resources() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {getResourceGroupBadges(resource.id)}
+                      {getResourceGroupBadge(resource.resource_group_id)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{resource.metadata?.description || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(resource.created_at).toLocaleDateString()}</td>
