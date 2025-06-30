@@ -88,30 +88,17 @@ def init_database():
             )
         ''')
         
-        # Create relationships table
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS relationships (
-                id TEXT PRIMARY KEY,
-                user TEXT NOT NULL,
-                relation TEXT NOT NULL,
-                object TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                UNIQUE(user, relation, object)
-            )
-        ''')
+        # Note: Relationships are now stored in OpenFGA, not SQLite
+        # This improves performance and reduces complexity
         
         # Create indexes for better performance
         conn.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_resources_group ON resources(resource_group_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_user_group_members_user ON user_group_members(user_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_user_group_members_group ON user_group_members(user_group_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_relationships_user ON relationships(user)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_relationships_object ON relationships(object)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_relationships_relation ON relationships(relation)')
         
         conn.commit()
-        print("✅ Database initialized successfully")
+        print("✅ Database initialized successfully (relationships stored in OpenFGA)")
 
 def reset_database():
     """Reset the database by dropping all tables and recreating them"""

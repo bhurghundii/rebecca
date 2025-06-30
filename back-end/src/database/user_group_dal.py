@@ -2,6 +2,11 @@
 Data Access Layer for User Groups
 """
 import json
+import asyncio
+import sys
+import os
+import threading
+import queue
 from typing import List, Optional, Dict, Any
 from .config import get_db
 from .user_dal import UserDAL
@@ -102,7 +107,68 @@ class UserGroupDAL:
             
             conn.commit()
         
+        # Create OpenFGA membership relationships
+        UserGroupDAL._create_openfga_memberships(group_id, user_ids)
+        
         return UserGroupDAL.get_by_id(group_id)
+    
+    @staticmethod
+    def _create_openfga_memberships(group_id: str, user_ids: List[str]):
+        """Create OpenFGA membership relationships for users in a group"""
+        try:
+            # Import here to avoid circular import
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            from openfga.service import OpenFGAService
+            
+            async def create_memberships():
+                for user_id in user_ids:
+                    try:
+                        # Create a fresh service instance for each operation
+                        service = OpenFGAService()
+                        await service.initialize()
+                        
+                        user_ref = f"user:{user_id}"
+                        group_ref = f"group:{group_id}"
+                        await service.write_tuple(user_ref, "member", group_ref)
+                        print(f"   ✅ Created OpenFGA membership: {user_ref} member {group_ref}")
+                        
+                        await service.close()
+                    except Exception as e:
+                        print(f"   ⚠️  Failed to create OpenFGA membership for user {user_id}: {e}")
+            
+            # Run the async function
+            asyncio.run(create_memberships())
+        except Exception as e:
+            print(f"   ⚠️  Failed to create OpenFGA memberships: {e}")
+    
+    @staticmethod
+    def _delete_openfga_memberships(group_id: str, user_ids: List[str]):
+        """Delete OpenFGA membership relationships for users in a group"""
+        try:
+            # Import here to avoid circular import
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            from openfga.service import OpenFGAService
+            
+            async def delete_memberships():
+                for user_id in user_ids:
+                    try:
+                        # Create a fresh service instance for each operation
+                        service = OpenFGAService()
+                        await service.initialize()
+                        
+                        user_ref = f"user:{user_id}"
+                        group_ref = f"group:{group_id}"
+                        await service.delete_tuple(user_ref, "member", group_ref)
+                        print(f"   ✅ Deleted OpenFGA membership: {user_ref} member {group_ref}")
+                        
+                        await service.close()
+                    except Exception as e:
+                        print(f"   ⚠️  Failed to delete OpenFGA membership for user {user_id}: {e}")
+            
+            # Run the async function
+            asyncio.run(delete_memberships())
+        except Exception as e:
+            print(f"   ⚠️  Failed to delete OpenFGA memberships: {e}")
     
     @staticmethod
     def update(group_id: str, name: Optional[str] = None, description: Optional[str] = None, 
@@ -140,6 +206,12 @@ class UserGroupDAL:
             
             # Update members if provided
             if user_ids is not None:
+                # Get current members for OpenFGA cleanup
+                current_members_cursor = conn.execute('''
+                    SELECT user_id FROM user_group_members WHERE user_group_id = ?
+                ''', (group_id,))
+                current_user_ids = [row[0] for row in current_members_cursor.fetchall()]
+                
                 # Remove all existing members
                 conn.execute('DELETE FROM user_group_members WHERE user_group_id = ?', (group_id,))
                 
@@ -151,6 +223,10 @@ class UserGroupDAL:
                         INSERT INTO user_group_members (id, user_group_id, user_id, created_at)
                         VALUES (?, ?, ?, ?)
                     ''', (member_id, group_id, user_id, timestamp))
+                
+                # Update OpenFGA memberships
+                UserGroupDAL._delete_openfga_memberships(group_id, current_user_ids)
+                UserGroupDAL._create_openfga_memberships(group_id, user_ids)
             
             conn.commit()
         
@@ -159,10 +235,22 @@ class UserGroupDAL:
     @staticmethod
     def delete(group_id: str) -> bool:
         """Delete user group (members will be automatically deleted due to foreign key cascade)"""
+        # Get current members for OpenFGA cleanup
         with get_db() as conn:
+            members_cursor = conn.execute('''
+                SELECT user_id FROM user_group_members WHERE user_group_id = ?
+            ''', (group_id,))
+            user_ids = [row[0] for row in members_cursor.fetchall()]
+            
             cursor = conn.execute('DELETE FROM user_groups WHERE id = ?', (group_id,))
+            success = cursor.rowcount > 0
             conn.commit()
-            return cursor.rowcount > 0
+            
+            if success:
+                # Clean up OpenFGA memberships
+                UserGroupDAL._delete_openfga_memberships(group_id, user_ids)
+            
+            return success
     
     @staticmethod
     def add_member(group_id: str, user_id: str) -> bool:
@@ -176,6 +264,10 @@ class UserGroupDAL:
                     VALUES (?, ?, ?, ?)
                 ''', (member_id, group_id, user_id, timestamp))
                 conn.commit()
+                
+                # Create OpenFGA membership
+                UserGroupDAL._create_openfga_memberships(group_id, [user_id])
+                
                 return True
             except Exception:
                 return False  # User already in group or doesn't exist
@@ -188,5 +280,11 @@ class UserGroupDAL:
                 DELETE FROM user_group_members 
                 WHERE user_group_id = ? AND user_id = ?
             ''', (group_id, user_id))
+            success = cursor.rowcount > 0
             conn.commit()
-            return cursor.rowcount > 0
+            
+            if success:
+                # Delete OpenFGA membership
+                UserGroupDAL._delete_openfga_memberships(group_id, [user_id])
+            
+            return success
