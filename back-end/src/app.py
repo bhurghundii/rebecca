@@ -515,6 +515,19 @@ def check_relationship():
     }), 200
 
 # =============================================================================
+# HEALTH CHECK ENDPOINT
+# =============================================================================
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Docker"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": get_timestamp(),
+        "service": "rebecca-api"
+    }), 200
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -536,7 +549,7 @@ if __name__ == '__main__':
     
     # Get port from environment variable or use default
     import os
-    port = int(os.environ.get('PORT', 8000))
+    port = int(os.environ.get('PORT', 5000))
     print(f"🌐 Server running on http://localhost:{port}")
     
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)

@@ -7,6 +7,7 @@ export function UserGroups() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null)
   const [formData, setFormData] = useState<CreateUserGroupRequest>({
     name: '',
     description: '',
@@ -32,16 +33,41 @@ export function UserGroups() {
     }
   }
 
-  const createUserGroup = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await userGroupService.createUserGroup(formData)
+      if (editingGroup) {
+        // Update existing group
+        await userGroupService.updateUserGroup(editingGroup.id, formData)
+      } else {
+        // Create new group
+        await userGroupService.createUserGroup(formData)
+      }
+      
+      // Reset form and close
       setFormData({ name: '', description: '', user_ids: [] })
       setShowForm(false)
+      setEditingGroup(null)
       loadData()
     } catch (error) {
-      console.error('Failed to create user group:', error)
+      console.error(`Failed to ${editingGroup ? 'update' : 'create'} user group:`, error)
     }
+  }
+
+  const startEditGroup = (group: UserGroup) => {
+    setEditingGroup(group)
+    setFormData({
+      name: group.name,
+      description: group.description || '',
+      user_ids: group.users.map(user => user.id)
+    })
+    setShowForm(true)
+  }
+
+  const cancelForm = () => {
+    setFormData({ name: '', description: '', user_ids: [] })
+    setShowForm(false)
+    setEditingGroup(null)
   }
 
   const deleteUserGroup = async (id: string) => {
@@ -83,7 +109,13 @@ export function UserGroups() {
           </p>
         </div>
         <button 
-          onClick={() => setShowForm(!showForm)} 
+          onClick={() => {
+            if (showForm) {
+              cancelForm()
+            } else {
+              setShowForm(true)
+            }
+          }} 
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
         >
           {showForm ? 'Cancel' : '+ Add User Group'}
@@ -92,8 +124,10 @@ export function UserGroups() {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-6">Create New User Group</h3>
-          <form onSubmit={createUserGroup} className="space-y-6 max-w-2xl">
+          <h3 className="text-xl font-semibold text-gray-800 mb-6">
+            {editingGroup ? 'Edit User Group' : 'Create New User Group'}
+          </h3>
+          <form onSubmit={handleFormSubmit} className="space-y-6 max-w-2xl">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Group Name:</label>
               <input
@@ -146,13 +180,22 @@ export function UserGroups() {
               </div>
             </div>
             
-            <button 
-              type="submit" 
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={formData.user_ids.length === 0}
-            >
-              Create User Group
-            </button>
+            <div className="flex gap-3">
+              <button 
+                type="submit" 
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={formData.user_ids.length === 0}
+              >
+                {editingGroup ? 'Update User Group' : 'Create User Group'}
+              </button>
+              <button 
+                type="button"
+                onClick={cancelForm}
+                className="inline-flex items-center px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -171,12 +214,20 @@ export function UserGroups() {
                 <div key={group.id} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                   <div className="flex justify-between items-start mb-4">
                     <h4 className="text-lg font-semibold text-gray-800">{group.name}</h4>
-                    <button
-                      onClick={() => deleteUserGroup(group.id)}
-                      className="inline-flex items-center px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                    >
-                      🗑️ Delete
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEditGroup(group)}
+                        className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteUserGroup(group.id)}
+                        className="inline-flex items-center px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
                   
                   {group.description && (

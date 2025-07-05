@@ -13,7 +13,7 @@ function Relationships() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     user: '',
-    relation: 'can_read',
+    relation: 'viewer',
     object: ''
   })
 
@@ -50,7 +50,7 @@ function Relationships() {
         // Create new relationship
         await relationshipService.createRelationship(formData)
       }
-      setFormData({ user: '', relation: 'can_read', object: '' })
+      setFormData({ user: '', relation: 'viewer', object: '' })
       setShowForm(false)
       loadData()
     } catch (error) {
@@ -70,7 +70,7 @@ function Relationships() {
 
   const cancelEdit = () => {
     setEditingId(null)
-    setFormData({ user: '', relation: 'can_read', object: '' })
+    setFormData({ user: '', relation: 'viewer', object: '' })
     setShowForm(false)
   }
 
@@ -137,11 +137,10 @@ function Relationships() {
                 value={formData.relation}
                 onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
               >
-                <option value="can_read">Can Read</option>
-                <option value="can_write">Can Write</option>
-                <option value="can_delete">Can Delete</option>
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
                 <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
+                <option value="member">Member</option>
               </select>
             </div>
             
@@ -190,7 +189,7 @@ function Relationships() {
                   <td>{getUserName(rel.user)}</td>
                   <td>
                     <span 
-                      className={`badge badge-${rel.relation.replace('can_', '')}`}
+                      className={`badge badge-${rel.relation}`}
                       onClick={() => startEdit(rel)}
                       title="Click to edit"
                       style={{ 
