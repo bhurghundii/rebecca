@@ -6,10 +6,10 @@ import asyncio
 import sys
 import os
 
-# Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(__file__))
 
-from database.openfga_service import get_openfga_service
+from service import get_openfga_service
 
 async def test_openfga_connection():
     """Test basic OpenFGA connectivity and setup"""
