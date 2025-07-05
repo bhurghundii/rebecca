@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # OpenFGA Authorization Service
+  openfga:
+    image: openfga/openfga:latest
+    container_name: rebecca-openfga
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "3000:3000"
+    command: |
+      run --playground-enabled --playground-port 3000
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=memory
+      - OPENFGA_LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rebecca-network
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./back-end
+      dockerfile: Dockerfile
+    container_name: rebecca-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - OPENFGA_API_URL=http://openfga:8080
+    depends_on:
+      openfga:
+        condition: service_healthy
+    volumes:
+      - ./back-end/rebecca.db:/app/rebecca.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rebecca-network
+
+  # Frontend Web Service
+  frontend:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    container_name: rebecca-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://backend:5000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rebecca-network
+
+networks:
+  rebecca-network:
+    driver: bridge
+
+volumes:
+  openfga-data:

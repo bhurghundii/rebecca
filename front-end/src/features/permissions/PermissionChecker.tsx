@@ -170,7 +170,6 @@ export function PermissionChecker() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="viewer">👁️ Viewer (can view/read)</option>
-              <option value="reader">📖 Reader (can read)</option>
               <option value="editor">✏️ Editor (can modify/edit)</option>
               <option value="owner">👑 Owner (full access)</option>
               <option value="member">👥 Member (group membership)</option>
@@ -255,7 +254,7 @@ export function PermissionChecker() {
           <li>Select a subject (user or user group)</li>
           <li>Choose the relation type you want to check:
             <ul className="ml-6 mt-1 list-disc text-sm">
-              <li><strong>viewer/reader:</strong> Can view or read the object</li>
+              <li><strong>viewer:</strong> Can view or read the object</li>
               <li><strong>editor:</strong> Can modify or edit the object</li>
               <li><strong>owner:</strong> Has full access to the object</li>
               <li><strong>member:</strong> Is a member of a group</li>

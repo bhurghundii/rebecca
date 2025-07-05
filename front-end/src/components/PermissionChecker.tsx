@@ -22,7 +22,7 @@ function PermissionChecker() {
   const [result, setResult] = useState<any>(null)
   const [formData, setFormData] = useState({
     user: '',
-    relation: 'can_read',
+    relation: 'viewer',
     object: ''
   })
 
@@ -105,11 +105,10 @@ function PermissionChecker() {
               value={formData.relation}
               onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
             >
-              <option value="can_read">Can Read</option>
-              <option value="can_write">Can Write</option>
-              <option value="can_delete">Can Delete</option>
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
               <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
+              <option value="member">Member</option>
             </select>
           </div>
           

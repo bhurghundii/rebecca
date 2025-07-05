@@ -1,27 +1,29 @@
 import { useState, useEffect } from 'react'
-import { relationshipService, userService, resourceService, resourceGroupService } from '../../services'
+import { relationshipService, userService, resourceService, resourceGroupService, userGroupService } from '../../services'
 import type { 
   Relationship, 
   CreateRelationshipRequest,
-  UpdateRelationshipRequest,
   User, 
   Resource,
-  ResourceGroup 
+  ResourceGroup,
+  UserGroup 
 } from '../../types/api'
 
 export function Relationships() {
   const [relationships, setRelationships] = useState<Relationship[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [resourceGroups, setResourceGroups] = useState<ResourceGroup[]>([])
   const [selectedResourceGroupId, setSelectedResourceGroupId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [viewMode, setViewMode] = useState<'matrix' | 'table'>('matrix')
+  const [userSelectionMode, setUserSelectionMode] = useState<'users' | 'groups'>('users')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CreateRelationshipRequest>({
     user: '',
-    relation: 'reader',
+    relation: 'viewer',
     object: ''
   })
 
@@ -31,15 +33,17 @@ export function Relationships() {
 
   const loadData = async () => {
     try {
-      const [relationshipsData, usersData, resourcesData, resourceGroupsData] = await Promise.all([
+      const [relationshipsData, usersData, userGroupsData, resourcesData, resourceGroupsData] = await Promise.all([
         relationshipService.getRelationships(),
         userService.getUsers(),
+        userGroupService.getUserGroups(),
         resourceService.getResources(),
         resourceGroupService.getResourceGroups()
       ])
       
       setRelationships(relationshipsData)
       setUsers(usersData)
+      setUserGroups(userGroupsData)
       setResources(resourcesData)
       setResourceGroups(resourceGroupsData)
       
@@ -65,7 +69,7 @@ export function Relationships() {
         // Create new relationship
         await relationshipService.createRelationship(formData)
       }
-      setFormData({ user: '', relation: 'reader', object: '' })
+      setFormData({ user: '', relation: 'viewer', object: '' })
       setShowForm(false)
       loadData()
     } catch (error) {
@@ -85,7 +89,7 @@ export function Relationships() {
 
   const cancelEdit = () => {
     setEditingId(null)
-    setFormData({ user: '', relation: 'reader', object: '' })
+    setFormData({ user: '', relation: 'viewer', object: '' })
     setShowForm(false)
   }
 
@@ -116,17 +120,10 @@ export function Relationships() {
 
   const getRelationBadge = (relation: string) => {
     const colors = {
-      reader: 'bg-green-100 text-green-800',
-      writer: 'bg-yellow-100 text-yellow-800',
-      editor: 'bg-orange-100 text-orange-800',
       owner: 'bg-blue-100 text-blue-800',
-      admin: 'bg-purple-100 text-purple-800',
+      editor: 'bg-orange-100 text-orange-800',
       viewer: 'bg-emerald-100 text-emerald-800',
-      commenter: 'bg-cyan-100 text-cyan-800',
-      // Legacy support for old can_ format
-      can_read: 'bg-green-100 text-green-800',
-      can_write: 'bg-yellow-100 text-yellow-800',
-      can_delete: 'bg-red-100 text-red-800'
+      member: 'bg-purple-100 text-purple-800'
     }
     return colors[relation as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
@@ -139,6 +136,18 @@ export function Relationships() {
     
     return relationships.find(rel => 
       rel.user === `user:${userId}` && 
+      rel.object === `${resourceType}:${resourceId}`
+    )
+  }
+
+  // Helper function to get relationship between group and resource
+  const getGroupResourceRelation = (groupId: string, resourceId: string) => {
+    // Find the resource to get its type for the OpenFGA format
+    const resource = resources.find(r => r.id === resourceId)
+    const resourceType = resource ? resource.type : 'resource'
+    
+    return relationships.find(rel => 
+      rel.user === `group:${groupId}` && 
       rel.object === `${resourceType}:${resourceId}`
     )
   }
@@ -174,6 +183,37 @@ export function Relationships() {
     }
   }
 
+  // Helper function to update or create group relationship
+  const updateMatrixGroupRelation = async (groupId: string, resourceId: string, newRelation: string) => {
+    const existingRelation = getGroupResourceRelation(groupId, resourceId)
+    
+    // Find the resource to get its type for the OpenFGA format
+    const resource = resources.find(r => r.id === resourceId)
+    const resourceType = resource ? resource.type : 'resource'
+    
+    try {
+      if (existingRelation) {
+        if (newRelation === 'none') {
+          // Delete relationship
+          await relationshipService.deleteRelationship(existingRelation.id)
+        } else {
+          // Update relationship
+          await relationshipService.updateRelationship(existingRelation.id, { relation: newRelation })
+        }
+      } else if (newRelation !== 'none') {
+        // Create new relationship with OpenFGA format
+        await relationshipService.createRelationship({
+          user: `group:${groupId}`,
+          relation: newRelation,
+          object: `${resourceType}:${resourceId}`
+        })
+      }
+      loadData()
+    } catch (error) {
+      console.error('Failed to update group relationship:', error)
+    }
+  }
+
   // Helper function to get resources for the selected resource group
   const getCurrentResources = () => {
     if (!selectedResourceGroupId) return resources
@@ -196,7 +236,34 @@ export function Relationships() {
                 {selectedGroup ? `Showing resources from: ${selectedGroup.name}` : 'Showing all resources'}
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
+              <div className="relative">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Show:</label>
+                <div className="flex rounded-md overflow-hidden bg-gray-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectionMode('users')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      userSelectionMode === 'users'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    👤 Users
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectionMode('groups')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      userSelectionMode === 'groups'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    👥 Groups
+                  </button>
+                </div>
+              </div>
               <div className="relative">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Resource Group:</label>
                 <select
@@ -225,7 +292,7 @@ export function Relationships() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r border-gray-300 sticky left-0 bg-gray-50 z-10 min-w-[200px]">
-                  User
+                  {userSelectionMode === 'users' ? 'User' : 'User Group'}
                 </th>
                 {currentResources.map((resource) => (
                   <th key={resource.id} className="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-300 min-w-[120px]">
@@ -237,51 +304,95 @@ export function Relationships() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-300 sticky left-0 bg-white hover:bg-gray-50 z-10">
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-xs text-gray-500">{user.email}</div>
-                    </div>
-                  </td>
-                  {currentResources.map((resource) => {
-                    const relation = getUserResourceRelation(user.id, resource.id)
-                    return (
-                      <td key={resource.id} className="px-4 py-3 text-center border-r border-gray-300">
-                        {relation ? (
-                          <select
-                            value={relation.relation}
-                            onChange={(e) => updateMatrixRelation(user.id, resource.id, e.target.value)}
-                            className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px]"
-                            title={`${user.name} → ${resource.name}`}
-                          >
-                            <option value="reader">Reader</option>
-                            <option value="viewer">Viewer</option>
-                            <option value="editor">Editor</option>
-                            <option value="owner">Owner</option>
-                            <option value="member">Member</option>
-                          </select>
-                        ) : (
-                          <select
-                            value="none"
-                            onChange={(e) => updateMatrixRelation(user.id, resource.id, e.target.value)}
-                            className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px] text-gray-400"
-                            title={`${user.name} → ${resource.name}`}
-                          >
-                            <option value="none">-</option>
-                            <option value="reader">Reader</option>
-                            <option value="viewer">Viewer</option>
-                            <option value="editor">Editor</option>
-                            <option value="owner">Owner</option>
-                            <option value="member">Member</option>
-                          </select>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
+              {userSelectionMode === 'users' ? (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-300 sticky left-0 bg-white hover:bg-gray-50 z-10">
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                    </td>
+                    {currentResources.map((resource) => {
+                      const relation = getUserResourceRelation(user.id, resource.id)
+                      return (
+                        <td key={resource.id} className="px-4 py-3 text-center border-r border-gray-300">
+                          {relation ? (
+                            <select
+                              value={relation.relation}
+                              onChange={(e) => updateMatrixRelation(user.id, resource.id, e.target.value)}
+                              className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px]"
+                              title={`${user.name} → ${resource.name}`}
+                            >
+                              <option value="viewer">Viewer</option>
+                              <option value="editor">Editor</option>
+                              <option value="owner">Owner</option>
+                              <option value="member">Member</option>
+                            </select>
+                          ) : (
+                            <select
+                              value="none"
+                              onChange={(e) => updateMatrixRelation(user.id, resource.id, e.target.value)}
+                              className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px] text-gray-400"
+                              title={`${user.name} → ${resource.name}`}
+                            >
+                              <option value="none">-</option>
+                              <option value="viewer">Viewer</option>
+                              <option value="editor">Editor</option>
+                              <option value="owner">Owner</option>
+                              <option value="member">Member</option>
+                            </select>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))
+              ) : (
+                userGroups.map((group) => (
+                  <tr key={group.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-300 sticky left-0 bg-white hover:bg-gray-50 z-10">
+                      <div>
+                        <div className="font-medium">{group.name}</div>
+                        <div className="text-xs text-gray-500">{group.user_count} members</div>
+                      </div>
+                    </td>
+                    {currentResources.map((resource) => {
+                      const relation = getGroupResourceRelation(group.id, resource.id)
+                      return (
+                        <td key={resource.id} className="px-4 py-3 text-center border-r border-gray-300">
+                          {relation ? (
+                            <select
+                              value={relation.relation}
+                              onChange={(e) => updateMatrixGroupRelation(group.id, resource.id, e.target.value)}
+                              className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px]"
+                              title={`${group.name} → ${resource.name}`}
+                            >
+                              <option value="viewer">Viewer</option>
+                              <option value="editor">Editor</option>
+                              <option value="owner">Owner</option>
+                              <option value="member">Member</option>
+                            </select>
+                          ) : (
+                            <select
+                              value="none"
+                              onChange={(e) => updateMatrixGroupRelation(group.id, resource.id, e.target.value)}
+                              className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[80px] text-gray-400"
+                              title={`${group.name} → ${resource.name}`}
+                            >
+                              <option value="none">-</option>
+                              <option value="viewer">Viewer</option>
+                              <option value="editor">Editor</option>
+                              <option value="owner">Owner</option>
+                              <option value="member">Member</option>
+                            </select>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -332,19 +443,55 @@ export function Relationships() {
           </h3>
           <form onSubmit={createRelationship} className="space-y-4 max-w-md">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">User:</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">User:</label>
+                <div className="flex rounded-md overflow-hidden bg-gray-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectionMode('users')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      userSelectionMode === 'users'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    👤 Users
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectionMode('groups')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      userSelectionMode === 'groups'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    👥 Groups
+                  </button>
+                </div>
+              </div>
               <select
                 value={formData.user}
                 onChange={(e) => setFormData({ ...formData, user: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Select a user...</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </option>
-                ))}
+                <option value="">
+                  {userSelectionMode === 'users' ? 'Select a user...' : 'Select a group...'}
+                </option>
+                {userSelectionMode === 'users' ? (
+                  users.map((user) => (
+                    <option key={user.id} value={`user:${user.id}`}>
+                      {user.name} ({user.email})
+                    </option>
+                  ))
+                ) : (
+                  userGroups.map((group) => (
+                    <option key={group.id} value={`group:${group.id}`}>
+                      {group.name} ({group.user_count} members)
+                    </option>
+                  ))
+                )}
               </select>
             </div>
             
@@ -355,13 +502,10 @@ export function Relationships() {
                 onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="reader">Reader</option>
-                <option value="writer">Writer</option>
+                <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
                 <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="viewer">Viewer</option>
-                <option value="commenter">Commenter</option>
+                <option value="member">Member</option>
               </select>
             </div>
             
